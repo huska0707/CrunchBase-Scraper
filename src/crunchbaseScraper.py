@@ -71,6 +71,7 @@ def scrape_data(company_name):
 
     print_green(f"Checking {company_name} alias {name}")
 
+    # load the page in "soup" variable
     soup = get_page(f"/organization/{name}")
     if not soup:
         print_green(f"{company_name}, alias {name} gave an error while loading")
@@ -78,6 +79,7 @@ def scrape_data(company_name):
             file.write("\n" + company_name)
         return
 
+    # extract website and social media links
     html_links = soup.find_all(
         "a",
         class_="cb-link component--field-formatter field-type-link layout-row layout-align-start-end ng-star-inserted",
@@ -87,6 +89,7 @@ def scrape_data(company_name):
         link = extract_link(str(html))
         links.append(link)
 
+    # the name wasn't correct if there are no social links on the page
     if len(links) == 0:
         print_green(f"{company_name}, alias {name} could not be found")
         with open("../data/not_found.csv", "a") as file:
@@ -98,6 +101,7 @@ def scrape_data(company_name):
     if "twitter" in links[-1]:
         company_twitter = links[-1].split("/")[-1]
 
+    # extract the personans in the team
     html_persons = soup.find_all(
         "div", class_="flex cb-padding-medium-left cb-break-word cb-hyphen"
     )
@@ -122,6 +126,13 @@ def scrape_data(company_name):
 
         if re.search(r"founder", position, re.I):
             founders.append(name_link)
+
+    # just to be safe
+    if not ceo and not cto:
+        if len(founders) >= 2:
+            (ceo, cto) = founders
+        elif len(founders) == 1:
+            ceo = founders[0]
 
     ceo_twitter = None
     cto_twitter = None
