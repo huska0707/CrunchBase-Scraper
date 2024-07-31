@@ -54,6 +54,7 @@ def format_name(name):
         .replace(":", "-")
     )
 
+
 def extract_link(element):
     return re.search(
         r"(https?:\/\/)(www\.)?([a-zA-Z0-9]+(-?[a-zA-Z0-9])*\.)+([a-z]{2,})(\/\S*)?",
@@ -63,3 +64,90 @@ def extract_link(element):
 
 def print_green(s):
     print(f"\033[92m{s}\033[0m")
+
+
+def scrape_data(company_name):
+    name = format_name(company_name)
+
+    print_green(f"Checking {company_name} alias {name}")
+
+    soup = get_page(f"/organization/{name}")
+    if not soup:
+        print_green(f"{company_name}, alias {name} gave an error while loading")
+        with open("../data/error.csv", "a") as file:
+            file.write("\n" + company_name)
+        return
+
+    html_links = soup.find_all(
+        "a",
+        class_="cb-link component--field-formatter field-type-link layout-row layout-align-start-end ng-star-inserted",
+    )
+    links = []
+    for html in html_links:
+        link = extract_link(str(html))
+        links.append(link)
+
+    if len(links) == 0:
+        print_green(f"{company_name}, alias {name} could not be found")
+        with open("../data/not_found.csv", "a") as file:
+            file.write("\n" + company_name)
+        return
+
+    website = links[0]
+    company_twitter = None
+    if "twitter" in links[-1]:
+        company_twitter = links[-1].split("/")[-1]
+
+    html_persons = soup.find_all(
+        "div", class_="flex cb-padding-medium-left cb-break-word cb-hyphen"
+    )
+
+    ceo = None
+    cto = None
+    founders = []
+
+    for html_person in html_persons:
+        name_link = html_person.find("a")["href"]
+        position = html_person.find("span")["title"]
+
+        if re.search(r"(\s|^)((ceo)|(Chief Executive Officer))(\s|$)", position, re.I):
+            ceo = name_link
+
+        if re.search(
+            r"(\s|^)((cto)|(Chief Technical Officer)|(Chief technology officer))(\s|$)",
+            position,
+            re.I,
+        ):
+            cto = name_link
+
+        if re.search(r"founder", position, re.I):
+            founders.append(name_link)
+
+    ceo_twitter = None
+    cto_twitter = None
+
+    for person in (ceo, cto):
+        if not person:
+            continue
+
+        soup = get_page(person)
+        if not soup:
+            print(f"Could not find {person}")
+            continue
+
+        card = soup.find("mat-card", class_="component--section-layout mat-card")
+
+        person_twitter = re.search(r'twitter.com/([^"]*)"', str(card))
+        if not person_twitter:
+            print_green(f"{person} doesn't have a twitter account")
+            continue
+
+        if person is ceo:
+            ceo_twitter = person_twitter.group(1)
+        else:
+            cto_twitter = person_twitter.group(1)
+
+    with open("../data/found.csv", "a") as file:
+        file.write(
+            f'\n"{company_name}","{website}","{company_twitter}","{ceo_twitter}","{cto_twitter}"'
+        )
