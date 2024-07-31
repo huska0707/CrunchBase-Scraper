@@ -53,3 +53,13 @@ def format_name(name):
         .replace(" ", "-")
         .replace(":", "-")
     )
+
+def extract_link(element):
+    return re.search(
+        r"(https?:\/\/)(www\.)?([a-zA-Z0-9]+(-?[a-zA-Z0-9])*\.)+([a-z]{2,})(\/\S*)?",
+        element,
+    ).group(0)
+
+
+def print_green(s):
+    print(f"\033[92m{s}\033[0m")
