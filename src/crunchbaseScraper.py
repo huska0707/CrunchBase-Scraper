@@ -162,3 +162,9 @@ def scrape_data(company_name):
         file.write(
             f'\n"{company_name}","{website}","{company_twitter}","{ceo_twitter}","{cto_twitter}"'
         )
+
+
+companies = list(dict.fromkeys(companies))
+
+for company in companies:
+    scrape_data(company)
